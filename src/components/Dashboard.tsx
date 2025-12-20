@@ -90,6 +90,14 @@ export function Dashboard({ onViewChange }: DashboardProps) {
       view: 'reading' as View,
     },
     {
+      title: 'Stocks',
+      value: '$0.00',
+      subtitle: 'Portfolio value',
+      icon: TrendingUp,
+      color: 'from-teal-500 to-teal-600',
+      view: 'stocks' as View,
+    },
+    {
       title: 'Expenses',
       value: `$${stats.totalExpenses.toFixed(2)}`,
       subtitle: 'This month',

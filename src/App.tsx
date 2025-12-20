@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { Header } from './components/Header';
+import { Sidebar } from './components/Sidebar';
 import { Dashboard } from './components/Dashboard';
 import { TaskManager } from './components/TaskManager';
 import { ReadingTracker } from './components/ReadingTracker';
@@ -6,12 +8,11 @@ import { FinanceTracker } from './components/FinanceTracker';
 import { LearningLog } from './components/LearningLog';
 import { Goals } from './components/Goals';
 import { Student } from './components/Student';
-import { AIAssistant } from './components/AIAssistant';
+import { Stocks } from './components/Stocks';
 import { AuthModal } from './components/AuthModal';
-import { Header } from './components/Header';
-import { Sidebar } from './components/Sidebar';
+import { AIAssistant } from './components/AIAssistant';
 
-export type View = 'dashboard' | 'tasks' | 'reading' | 'finance' | 'learning' | 'goals' | 'student';
+export type View = 'dashboard' | 'tasks' | 'reading' | 'finance' | 'learning' | 'goals' | 'student' | 'stocks';
 
 export interface User {
   id: string;
@@ -76,7 +77,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+    <div className="min-h-screen bg-gray-50">
       <Header 
         user={user} 
         onLogout={handleLogout}
@@ -89,11 +90,12 @@ export default function App() {
           onViewChange={setCurrentView}
         />
         
-        <main className="flex-1 p-4 md:p-8 ml-0 md:ml-64">
+        <main className="flex-1 p-4 md:p-6 lg:p-8 ml-0 md:ml-64 bg-gray-50">
           <div className="max-w-7xl mx-auto">
             {currentView === 'dashboard' && <Dashboard onViewChange={setCurrentView} />}
             {currentView === 'tasks' && <TaskManager />}
             {currentView === 'reading' && <ReadingTracker />}
+            {currentView === 'stocks' && <Stocks />}
             {currentView === 'finance' && <FinanceTracker />}
             {currentView === 'learning' && <LearningLog />}
             {currentView === 'goals' && <Goals />}
