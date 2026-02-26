@@ -41,29 +41,53 @@ export default function App() {
   }, []);
 
   const handleLogin = async (email: string, password: string) => {
-    const res = await fetch('/api/users/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
-    });
-    if (!res.ok) throw new Error('Invalid credentials');
-    const user = await res.json();
-    localStorage.setItem('tooproductive_user', JSON.stringify(user));
-    setUser(user);
-    setCurrentView('home');
+    try {
+      const res = await fetch('/api/users/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Invalid credentials');
+      }
+
+      const user = await res.json();
+      localStorage.setItem('tooproductive_user', JSON.stringify(user));
+      setUser(user);
+      setCurrentView('home');
+    } catch (err: any) {
+      if (err.name === 'TypeError' && err.message === 'Failed to fetch') {
+        throw new Error('Cannot connect to the server. Please ensure the backend is running.');
+      }
+      throw err;
+    }
   };
 
   const handleSignup = async (email: string, password: string, name: string, role: string) => {
-    const res = await fetch('/api/users/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, name, persona: role || 'GENERAL' })
-    });
-    if (!res.ok) throw new Error('Registration failed. Email may be in use.');
-    const user = await res.json();
-    localStorage.setItem('tooproductive_user', JSON.stringify(user));
-    setUser(user);
-    setCurrentView('home');
+    try {
+      const res = await fetch('/api/users/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, name, persona: role || 'GENERAL' })
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Registration failed. Please try again.');
+      }
+
+      const user = await res.json();
+      localStorage.setItem('tooproductive_user', JSON.stringify(user));
+      setUser(user);
+      setCurrentView('home');
+    } catch (err: any) {
+      if (err.name === 'TypeError' && err.message === 'Failed to fetch') {
+        throw new Error('Cannot connect to the server. Please ensure the backend is running.');
+      }
+      throw err;
+    }
   };
 
   const handleLogout = () => {

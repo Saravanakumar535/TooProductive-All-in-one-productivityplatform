@@ -16,24 +16,32 @@ router.get('/', async (req, res) => {
 // Login a user
 router.post('/login', async (req, res) => {
     const { email, password } = req.body;
+    if (!email || !password) {
+        return res.status(400).json({ error: 'Email and password are required' });
+    }
     try {
         const user = await prisma.user.findUnique({
             where: { email },
         });
         if (user && user.passwordHash === password) {
             // Simplified auth for MVP. In reality, use bcrypt and jwt.
-            res.json(user);
+            const { passwordHash, ...userWithoutPassword } = user;
+            res.json(userWithoutPassword);
         } else {
-            res.status(401).json({ error: 'Invalid credentials' });
+            res.status(401).json({ error: 'Invalid email or password' });
         }
     } catch (error) {
-        res.status(500).json({ error: 'Login failed' });
+        console.error('Login error:', error);
+        res.status(500).json({ error: 'An internal server error occurred during login' });
     }
 });
 
 // Register a new user
 router.post('/register', async (req, res) => {
     const { email, name, password, persona } = req.body;
+    if (!email || !password || !name) {
+        return res.status(400).json({ error: 'Email, name, and password are required' });
+    }
     try {
         const user = await prisma.user.create({
             data: {
@@ -43,9 +51,15 @@ router.post('/register', async (req, res) => {
                 persona: persona || "GENERAL"
             },
         });
-        res.status(201).json(user);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to create user. Email might be in use.' });
+        const { passwordHash, ...userWithoutPassword } = user;
+        res.status(201).json(userWithoutPassword);
+    } catch (error: any) {
+        console.error('Registration error:', error);
+        if (error.code === 'P2002') {
+            res.status(409).json({ error: 'This email is already registered. Please try logging in.' });
+        } else {
+            res.status(500).json({ error: 'Failed to create account. Please try again later.' });
+        }
     }
 });
 
