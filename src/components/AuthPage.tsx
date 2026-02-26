@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Mail, Lock, User, Eye, EyeOff, Github, Chrome, Code, Cpu, Braces, Terminal, Shield, Zap } from 'lucide-react';
+import { Mail, Lock, User, Eye, EyeOff, Code, Cpu, Braces, Terminal, Shield, Zap } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface AuthPageProps {
@@ -126,20 +126,7 @@ export function AuthPage({ onLogin, onSignup }: AuthPageProps) {
                                 {mode === 'login' ? 'Enter your credentials to access your workspace' : 'Start your journey to infinite productivity'}
                             </p>
 
-                            {/* Social buttons */}
-                            <div className="grid grid-cols-2 gap-3 mb-6">
-                                <button className="flex items-center justify-center gap-2 py-3 rounded-xl border border-border-subtle bg-bg-secondary text-text-secondary text-sm font-medium hover:bg-bg-tertiary hover:border-border-default transition-all">
-                                    <Chrome className="w-4 h-4" /> Google
-                                </button>
-                                <button className="flex items-center justify-center gap-2 py-3 rounded-xl border border-border-subtle bg-bg-secondary text-text-secondary text-sm font-medium hover:bg-bg-tertiary hover:border-border-default transition-all">
-                                    <Github className="w-4 h-4" /> GitHub
-                                </button>
-                            </div>
 
-                            <div className="relative mb-6">
-                                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border-subtle" /></div>
-                                <div className="relative flex justify-center"><span className="px-4 bg-white text-text-muted text-sm">or continue with email</span></div>
-                            </div>
 
                             <form onSubmit={handleSubmit} className="space-y-5">
                                 {mode === 'signup' && (
