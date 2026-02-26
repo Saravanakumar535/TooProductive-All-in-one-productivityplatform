@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { MotionSection } from './ui/MotionSection';
 import { Calendar as CalendarIcon, Clock, ArrowRight, Trash2, Save } from 'lucide-react';
@@ -33,7 +33,7 @@ export function DailyPlanner() {
 
         for (let hour of timeBlocks) {
             if (!newSchedule[hour] && deepWorkAdded < 4) {
-                newSchedule[hour] = "Deep Work Session";
+                newSchedule[hour] = "Deep Work Session";                
                 deepWorkAdded++;
             }
         }
