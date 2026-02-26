@@ -1,0 +1,191 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @default("")
+  name         String?
+  role         String   @default("USER")
+  persona      String   @default("GENERAL")
+  level        Int      @default(1)
+  xp           Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tasks         Task[]
+  kanbanCards   KanbanCard[]
+  Note          Note[]
+  Journal       Journal[]
+  Habit         Habit[]
+  Goal          Goal[]
+  LearningEntry LearningEntry[]
+  Expense       Expense[]
+  Subject       Subject[]
+  StudySession  StudySession[]
+  TimetableSlot TimetableSlot[]
+}
+
+model Task {
+  id          String    @id @default(uuid())
+  title       String
+  description String?
+  completed   Boolean   @default(false)
+  priority    String    @default("MEDIUM")
+  category    String    @default("General")
+  dueDate     DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Note {
+  id        String   @id @default(uuid())
+  title     String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Habit {
+  id                String   @id @default(uuid())
+  name              String
+  currentStreak     Int      @default(0)
+  longestStreak     Int      @default(0)
+  completed         Boolean  @default(false)
+  lastCompletedDate DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  userId            String
+  user              User     @relation(fields: [userId], references: [id])
+
+  completions       HabitCompletion[]
+}
+
+model HabitCompletion {
+  id      String   @id @default(uuid())
+  habitId String
+  date    DateTime
+  habit   Habit    @relation(fields: [habitId], references: [id], onDelete: Cascade)
+
+  @@unique([habitId, date])
+}
+
+model Journal {
+  id        String   @id @default(uuid())
+  title     String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Goal {
+  id           String    @id @default(uuid())
+  title        String
+  description  String?
+  targetValue  Int
+  currentValue Int       @default(0)
+  unit         String
+  category     String    @default("Personal")
+  completed    Boolean   @default(false)
+  xpReward     Int       @default(50)
+  createdAt    DateTime  @default(now())
+  completedAt  DateTime?
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ----------------------------------------------------
+// FINANCIAL PRODUCTIVITY
+// ----------------------------------------------------
+
+model LearningEntry {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  category    String
+  date        DateTime @default(now())
+  duration    Int // in minutes
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ----------------------------------------------------
+
+model Expense {
+  id          String   @id @default(uuid())
+  description String
+  amount      Float
+  category    String
+  type        String // INCOME, EXPENSE
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ----------------------------------------------------
+// STUDENT / LEARNING MODULE
+// ----------------------------------------------------
+
+model Subject {
+  id              String    @id @default(uuid())
+  name            String
+  color           String    @default("#3b82f6")
+  totalTopics     Int       @default(0)
+  completedTopics Int       @default(0)
+  totalHours      Float     @default(0)
+  examDate        DateTime?
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  studySessions  StudySession[]
+  timetableSlots TimetableSlot[]
+}
+
+model StudySession {
+  id        String   @id @default(uuid())
+  duration  Int // in minutes
+  date      DateTime @default(now())
+  subjectId String
+  subject   Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model TimetableSlot {
+  id        String  @id @default(uuid())
+  day       String // Monday, Tuesday...
+  startTime String // HH:mm
+  endTime   String // HH:mm
+  subjectId String
+  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model KanbanCard {
+  id        String   @id @default(uuid())
+  title     String
+  column    String   @default("todo")
+  priority  String   @default("Medium")
+  tags      String   @default("[]") // e.g. JSON string
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}

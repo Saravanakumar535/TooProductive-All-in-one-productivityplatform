@@ -1,6 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Plus, TrendingDown, TrendingUp, DollarSign, Trash2, Calendar } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { motion, AnimatePresence } from 'framer-motion';
+import { MotionSection } from './ui/MotionSection';
+import { AnimatedCard } from './ui/AnimatedCard';
+import { GradientButton } from './ui/GradientButton';
+import { cn } from '../lib/utils';
 
 interface Expense {
   id: string;
@@ -21,43 +26,68 @@ export function FinanceTracker() {
     type: 'expense' as 'income' | 'expense',
   });
 
-  useEffect(() => {
-    const savedExpenses = localStorage.getItem('tooproductive_expenses');
-    if (savedExpenses) {
-      setExpenses(JSON.parse(savedExpenses));
+  const [loading, setLoading] = useState(true);
+
+  const fetchExpenses = async () => {
+    try {
+      const res = await fetch('/api/finance');
+      if (res.ok) {
+        const data = await res.json();
+        setExpenses(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch expenses');
+    } finally {
+      setLoading(false);
     }
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem('tooproductive_expenses', JSON.stringify(expenses));
-  }, [expenses]);
-
-  const addExpense = () => {
-    if (!newExpense.description || !newExpense.amount || !newExpense.category) return;
-
-    const expense: Expense = {
-      id: Date.now().toString(),
-      description: newExpense.description,
-      amount: parseFloat(newExpense.amount),
-      category: newExpense.category,
-      type: newExpense.type,
-      date: new Date().toISOString(),
-    };
-
-    setExpenses([expense, ...expenses]);
-    setNewExpense({ description: '', amount: '', category: '', type: 'expense' });
-    setShowAddForm(false);
   };
 
-  const deleteExpense = (id: string) => {
-    setExpenses(expenses.filter(e => e.id !== id));
+  useEffect(() => {
+    fetchExpenses();
+  }, []);
+
+  const addExpense = async () => {
+    if (!newExpense.description || !newExpense.amount || !newExpense.category) return;
+
+    try {
+      const res = await fetch('/api/finance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          description: newExpense.description,
+          amount: newExpense.amount,
+          category: newExpense.category,
+          type: newExpense.type,
+          date: new Date().toISOString()
+        })
+      });
+
+      if (res.ok) {
+        const expense = await res.json();
+        setExpenses([expense, ...expenses]);
+        setNewExpense({ description: '', amount: '', category: '', type: 'expense' });
+        setShowAddForm(false);
+      }
+    } catch (error) {
+      console.error('Failed to add expense');
+    }
+  };
+
+  const deleteExpense = async (id: string) => {
+    try {
+      const res = await fetch(`/api/finance/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setExpenses(expenses.filter(e => e.id !== id));
+      }
+    } catch (error) {
+      console.error('Failed to delete expense');
+    }
   };
 
   const totalIncome = expenses.filter(e => e.type === 'income').reduce((sum, e) => sum + e.amount, 0);
   const totalExpenses = expenses.filter(e => e.type === 'expense').reduce((sum, e) => sum + e.amount, 0);
   const balance = totalIncome - totalExpenses;
 
-  // Group by category for chart
   const categoryData = expenses
     .filter(e => e.type === 'expense')
     .reduce((acc, e) => {
@@ -68,206 +98,242 @@ export function FinanceTracker() {
         acc.push({ category: e.category, amount: e.amount });
       }
       return acc;
-    }, [] as Array<{ category: string; amount: number }>);
+    }, [] as Array<{ category: string; amount: number }>)
+    .sort((a, b) => b.amount - a.amount);
 
   const commonCategories = ['Food', 'Transport', 'Entertainment', 'Utilities', 'Shopping', 'Health', 'Other'];
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-slate-900 mb-2">Finance Tracker</h1>
-          <p className="text-slate-600">Manage your income and expenses</p>
+    <div className="space-y-8 pb-12 w-full max-w-6xl mx-auto">
+      <MotionSection delay={0.1}>
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div className="flex flex-col gap-2">
+            <h1 className="text-4xl font-bold tracking-tight text-text-primary inline-block">
+              Wealth <span className="text-gradient-brand">Command</span>
+            </h1>
+            <p className="text-text-muted text-lg">Financial telemetrics tracking.</p>
+          </div>
+          <GradientButton onClick={() => setShowAddForm(!showAddForm)}>
+            <Plus className="w-5 h-5 mr-2" /> Log Transaction
+          </GradientButton>
         </div>
-        <button
-          onClick={() => setShowAddForm(!showAddForm)}
-          className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all flex items-center gap-2"
-        >
-          <Plus className="w-4 h-4" />
-          Add Transaction
-        </button>
-      </div>
+      </MotionSection>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl p-6 shadow-sm">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <TrendingUp className="w-5 h-5 text-green-600" />
+      <MotionSection delay={0.2}>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <AnimatedCard className="border border-border-subtle bg-bg-tertiary">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-3 bg-green-500/10 rounded-xl border border-green-500/20">
+                <TrendingUp className="w-5 h-5 text-green-400" />
+              </div>
+              <span className="text-text-muted font-medium tracking-wide">GROSS INCOME</span>
             </div>
-            <span className="text-slate-600">Total Income</span>
-          </div>
-          <div className="text-slate-900">${totalIncome.toFixed(2)}</div>
-        </div>
-        <div className="bg-white rounded-xl p-6 shadow-sm">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-red-100 rounded-lg">
-              <TrendingDown className="w-5 h-5 text-red-600" />
-            </div>
-            <span className="text-slate-600">Total Expenses</span>
-          </div>
-          <div className="text-slate-900">${totalExpenses.toFixed(2)}</div>
-        </div>
-        <div className="bg-white rounded-xl p-6 shadow-sm">
-          <div className="flex items-center gap-3 mb-2">
-            <div className={`p-2 rounded-lg ${balance >= 0 ? 'bg-blue-100' : 'bg-orange-100'}`}>
-              <DollarSign className={`w-5 h-5 ${balance >= 0 ? 'text-blue-600' : 'text-orange-600'}`} />
-            </div>
-            <span className="text-slate-600">Balance</span>
-          </div>
-          <div className={balance >= 0 ? 'text-blue-600' : 'text-orange-600'}>
-            ${Math.abs(balance).toFixed(2)}
-          </div>
-        </div>
-      </div>
+            <div className="text-3xl font-bold text-text-primary tracking-tight">${totalIncome.toFixed(2)}</div>
+          </AnimatedCard>
 
-      {/* Add Transaction Form */}
-      {showAddForm && (
-        <div className="bg-white rounded-xl p-6 shadow-sm">
-          <h3 className="text-slate-900 mb-4">Add Transaction</h3>
-          <div className="space-y-3">
-            <div className="flex gap-3">
-              <button
-                onClick={() => setNewExpense({ ...newExpense, type: 'expense' })}
-                className={`flex-1 py-2 rounded-lg transition-colors ${
-                  newExpense.type === 'expense'
-                    ? 'bg-red-600 text-white'
-                    : 'bg-slate-200 text-slate-700'
-                }`}
-              >
-                Expense
-              </button>
-              <button
-                onClick={() => setNewExpense({ ...newExpense, type: 'income' })}
-                className={`flex-1 py-2 rounded-lg transition-colors ${
-                  newExpense.type === 'income'
-                    ? 'bg-green-600 text-white'
-                    : 'bg-slate-200 text-slate-700'
-                }`}
-              >
-                Income
-              </button>
+          <AnimatedCard className="border border-border-subtle bg-bg-tertiary">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-3 bg-brand-pink/10 rounded-xl border border-brand-pink/20">
+                <TrendingDown className="w-5 h-5 text-brand-pink" />
+              </div>
+              <span className="text-text-muted font-medium tracking-wide">TOTAL EXPENSES</span>
             </div>
-            <input
-              type="text"
-              value={newExpense.description}
-              onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })}
-              placeholder="Description"
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
-            />
-            <div className="flex gap-3">
-              <input
-                type="number"
-                step="0.01"
-                value={newExpense.amount}
-                onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })}
-                placeholder="Amount"
-                className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
-              />
-              <select
-                value={newExpense.category}
-                onChange={(e) => setNewExpense({ ...newExpense, category: e.target.value })}
-                className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
-              >
-                <option value="">Select Category</option>
-                {commonCategories.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
+            <div className="text-3xl font-bold text-text-primary tracking-tight">${totalExpenses.toFixed(2)}</div>
+          </AnimatedCard>
+
+          <AnimatedCard className="border border-border-subtle bg-bg-tertiary">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-3 bg-brand-cyan/10 rounded-xl border border-brand-cyan/20">
+                <DollarSign className={cn("w-5 h-5", balance >= 0 ? "text-brand-cyan" : "text-brand-pink")} />
+              </div>
+              <span className="text-text-muted font-medium tracking-wide">NET BALANCE</span>
             </div>
-            <div className="flex gap-3">
-              <button
-                onClick={addExpense}
-                className="flex-1 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all"
-              >
-                Add Transaction
-              </button>
-              <button
-                onClick={() => setShowAddForm(false)}
-                className="px-6 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors"
-              >
-                Cancel
-              </button>
+            <div className={cn("text-3xl font-bold tracking-tight", balance >= 0 ? "text-brand-cyan" : "text-brand-pink")}>
+              ${Math.abs(balance).toFixed(2)}
             </div>
-          </div>
+          </AnimatedCard>
         </div>
-      )}
+      </MotionSection>
+
+      <AnimatePresence>
+        {showAddForm && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="glass-panel rounded-2xl p-6 border border-border-subtle mb-6 space-y-6">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-xl font-bold text-text-primary">Log Transaction</h3>
+              </div>
+              <div className="space-y-4">
+                <div className="flex p-1 bg-bg-tertiary backdrop-blur-md rounded-xl w-max border border-border-subtle relative">
+                  <button
+                    onClick={() => setNewExpense({ ...newExpense, type: 'expense' })}
+                    className={cn(
+                      "px-8 py-2.5 rounded-lg flex items-center justify-center font-bold tracking-wide transition-all relative z-10",
+                      newExpense.type === 'expense' ? "text-text-primary" : "text-text-muted hover:text-text-primary"
+                    )}
+                  >
+                    {newExpense.type === 'expense' && (
+                      <motion.div layoutId="txType" className="absolute inset-0 bg-accent-pink/10 border border-accent-pink/20 rounded-lg shadow-sm" />
+                    )}
+                    EXPENSE
+                  </button>
+                  <button
+                    onClick={() => setNewExpense({ ...newExpense, type: 'income' })}
+                    className={cn(
+                      "px-8 py-2.5 rounded-lg flex items-center justify-center font-bold tracking-wide transition-all relative z-10",
+                      newExpense.type === 'income' ? "text-text-primary" : "text-text-muted hover:text-text-primary"
+                    )}
+                  >
+                    {newExpense.type === 'income' && (
+                      <motion.div layoutId="txType" className="absolute inset-0 bg-accent-green/10 border border-accent-green/20 rounded-lg shadow-sm" />
+                    )}
+                    INCOME
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <input
+                    type="text"
+                    value={newExpense.description}
+                    onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })}
+                    placeholder="Transaction descriptor"
+                    className="w-full px-5 py-3 bg-bg-tertiary border border-border-subtle text-text-primary rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-cyan/50"
+                  />
+                  <div className="flex gap-4">
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={newExpense.amount}
+                      onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })}
+                      placeholder="Amount ($)"
+                      className="w-1/2 px-5 py-3 bg-bg-tertiary border border-border-subtle text-text-primary rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-cyan/50"
+                    />
+                    <select
+                      value={newExpense.category}
+                      onChange={(e) => setNewExpense({ ...newExpense, category: e.target.value })}
+                      className="w-1/2 px-5 py-3 bg-bg-tertiary border border-border-subtle text-text-primary rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-cyan/50"
+                    >
+                      <option value="">Category</option>
+                      {commonCategories.map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex gap-4 pt-4">
+                  <GradientButton onClick={addExpense} className="w-full md:w-auto">
+                    Record Entry
+                  </GradientButton>
+                  <button onClick={() => setShowAddForm(false)} className="px-6 py-3 text-text-muted hover:text-text-primary transition-colors font-medium">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Transactions List */}
-        <div className="lg:col-span-2 space-y-3">
-          {expenses.length === 0 ? (
-            <div className="bg-white rounded-xl p-12 text-center shadow-sm">
-              <DollarSign className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-              <p className="text-slate-500">No transactions yet. Add your first one!</p>
+        <MotionSection delay={0.3} className="lg:col-span-2 space-y-4">
+          <h3 className="text-xl font-bold text-text-primary mb-2 border-b border-border-subtle pb-4 inline-block">Ledger Logs</h3>
+          {loading ? (
+            <div className="glass-panel p-16 text-center rounded-2xl border border-border-subtle flex flex-col items-center justify-center">
+              <div className="w-10 h-10 border-4 border-brand-cyan/20 border-t-brand-cyan rounded-full animate-spin mb-4" />
+              <p className="text-text-muted font-medium">Syncing database records...</p>
+            </div>
+          ) : expenses.length === 0 ? (
+            <div className="glass-panel p-16 text-center rounded-2xl border border-border-subtle">
+              <DollarSign className="w-16 h-16 text-brand-purple/40 mx-auto mb-4" />
+              <p className="text-text-muted font-medium">No transactions recorded. System nominal.</p>
             </div>
           ) : (
-            expenses.map(expense => (
-              <div key={expense.id} className="bg-white rounded-xl p-4 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3 flex-1">
-                    <div className={`p-2 rounded-lg ${
-                      expense.type === 'income' ? 'bg-green-100' : 'bg-red-100'
-                    }`}>
-                      {expense.type === 'income' ? (
-                        <TrendingUp className="w-5 h-5 text-green-600" />
-                      ) : (
-                        <TrendingDown className="w-5 h-5 text-red-600" />
-                      )}
+            <div className="space-y-4">
+              {expenses.map((expense, index) => (
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  key={expense.id}
+                  className="glass-panel rounded-2xl p-5 border border-border-subtle hover:border-border-subtle transition-all group flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className={cn(
+                      "p-3 rounded-xl border shadow-inner text-text-primary",
+                      expense.type === 'income' ? 'bg-green-500/20 border-green-500/30' : 'bg-brand-pink/10 border-brand-pink/20 text-brand-pink'
+                    )}>
+                      {expense.type === 'income' ? <TrendingUp className="w-5 h-5 text-green-400" /> : <TrendingDown className="w-5 h-5" />}
                     </div>
-                    <div className="flex-1">
-                      <div className="text-slate-900">{expense.description}</div>
-                      <div className="text-sm text-slate-500 flex items-center gap-2">
-                        <span className="px-2 py-0.5 bg-slate-100 rounded">{expense.category}</span>
-                        <span className="flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
+                    <div>
+                      <div className="text-text-primary font-bold tracking-wide">{expense.description}</div>
+                      <div className="text-sm text-text-muted flex items-center gap-3 mt-1 font-medium">
+                        <span className="px-2.5 py-1 bg-bg-tertiary text-text-muted rounded border border-border-subtle uppercase tracking-wider text-[10px]">{expense.category}</span>
+                        <span className="flex items-center gap-1.5">
+                          <Calendar className="w-3.5 h-3.5 opacity-50" />
                           {new Date(expense.date).toLocaleDateString()}
                         </span>
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className={`font-medium ${
-                      expense.type === 'income' ? 'text-green-600' : 'text-red-600'
-                    }`}>
+                  <div className="flex items-center gap-4">
+                    <span className={cn("text-xl font-bold tracking-tight", expense.type === 'income' ? 'text-green-400' : 'text-brand-pink')}>
                       {expense.type === 'income' ? '+' : '-'}${expense.amount.toFixed(2)}
                     </span>
                     <button
                       onClick={() => deleteExpense(expense.id)}
-                      className="p-2 text-slate-400 hover:text-red-600 transition-colors"
+                      className="p-3 text-text-muted hover:text-brand-pink hover:bg-brand-pink/10 rounded-xl transition-all opacity-0 group-hover:opacity-100"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-5 h-5" />
                     </button>
                   </div>
-                </div>
-              </div>
-            ))
+                </motion.div>
+              ))}
+            </div>
           )}
-        </div>
+        </MotionSection>
 
         {/* Category Chart */}
-        {categoryData.length > 0 && (
-          <div className="bg-white rounded-xl p-6 shadow-sm">
-            <h3 className="text-slate-900 mb-4">Expenses by Category</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={categoryData} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis type="number" stroke="#64748b" />
-                <YAxis type="category" dataKey="category" stroke="#64748b" width={80} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'white',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '8px'
-                  }}
-                  formatter={(value: number) => `$${value.toFixed(2)}`}
-                />
-                <Bar dataKey="amount" fill="#ef4444" radius={[0, 8, 8, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        )}
+        <MotionSection delay={0.4}>
+          {categoryData.length > 0 && (
+            <AnimatedCard tilt={false} className="h-full border border-border-subtle min-h-[400px] flex flex-col">
+              <h3 className="text-xl font-bold text-text-primary mb-6">Expense Vector Map</h3>
+              <div className="flex-1 w-full min-h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={categoryData} layout="vertical" margin={{ left: 0, right: 20 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={true} vertical={false} />
+                    <XAxis type="number" stroke="rgba(255,255,255,0.2)" tick={{ fill: '#9ca3af' }} />
+                    <YAxis type="category" dataKey="category" stroke="rgba(255,255,255,0.2)" tick={{ fill: '#9ca3af', fontSize: 12 }} width={90} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'rgba(17, 17, 26, 0.9)',
+                        backdropFilter: 'blur(10px)',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        borderRadius: '12px',
+                        color: 'white'
+                      }}
+                      formatter={(value: number) => `$${value.toFixed(2)}`}
+                      cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                    />
+                    <Bar dataKey="amount" fill="#ec4899" radius={[0, 4, 4, 0]} barSize={20}>
+                      {categoryData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={index === 0 ? '#ec4899' : '#8b5cf6'} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </AnimatedCard>
+          )}
+        </MotionSection>
       </div>
     </div>
   );
 }
+
