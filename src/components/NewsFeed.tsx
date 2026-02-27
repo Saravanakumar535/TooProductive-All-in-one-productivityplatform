@@ -60,7 +60,40 @@ function CardSkeleton({ large }: { large?: boolean }) {
     );
 }
 
+// Fallback images — high-quality tech-themed photos for articles without images
+const FALLBACK_IMAGES = [
+    'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&q=80', // circuit board
+    'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=800&q=80', // cybersecurity
+    'https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=800&q=80', // laptop code
+    'https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=800&q=80', // monitor code
+    'https://images.unsplash.com/photo-1504639725590-34d0984388bd?w=800&q=80', // code screen
+    'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&q=80', // matrix
+    'https://images.unsplash.com/photo-1555949963-aa79dcee981c?w=800&q=80', // abstract tech
+    'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=800&q=80', // laptop desk
+    'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=800&q=80', // server room
+    'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800&q=80', // earth tech
+    'https://images.unsplash.com/photo-1535378917042-10a22c95931a?w=800&q=80', // AI robot
+    'https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=800&q=80', // team working
+    'https://images.unsplash.com/photo-1563986768609-322da13575f2?w=800&q=80', // chip closeup
+    'https://images.unsplash.com/photo-1580894894513-541e068a3e2b?w=800&q=80', // phone app
+    'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800&q=80', // desk setup
+    'https://images.unsplash.com/photo-1531297484001-80022131f5a1?w=800&q=80', // purple laptop
+    'https://images.unsplash.com/photo-1573164713988-8665fc963095?w=800&q=80', // woman coding
+    'https://images.unsplash.com/photo-1605810230434-7631ac76ec81?w=800&q=80', // screens wall
+    'https://images.unsplash.com/photo-1562813733-b31f71025d54?w=800&q=80', // dark terminal
+    'https://images.unsplash.com/photo-1487058792275-0ad4aaf24ca7?w=800&q=80', // colorful code
+];
+
+function getArticleImage(article: Article, index: number): string {
+    if (article.image) return article.image;
+    // Deterministic fallback based on title hash so same article always gets same image
+    let hash = 0;
+    for (let i = 0; i < article.title.length; i++) hash = ((hash << 5) - hash) + article.title.charCodeAt(i);
+    return FALLBACK_IMAGES[Math.abs(hash + index) % FALLBACK_IMAGES.length];
+}
+
 function FeaturedCard({ article }: { article: Article }) {
+    const imgSrc = getArticleImage(article, 0);
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -71,15 +104,9 @@ function FeaturedCard({ article }: { article: Article }) {
         >
             <div className="flex flex-col lg:flex-row">
                 <div className="relative lg:w-3/5 h-64 lg:h-auto overflow-hidden">
-                    {article.image ? (
-                        <img src={article.image} alt={article.title}
-                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                    ) : (
-                        <div className="w-full h-full min-h-[280px] bg-gradient-to-br from-indigo-50 to-violet-50 flex items-center justify-center">
-                            <Newspaper className="w-20 h-20 text-indigo-200" />
-                        </div>
-                    )}
+                    <img src={imgSrc} alt={article.title}
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                        onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK_IMAGES[0]; }} />
                     <div className="absolute inset-0 bg-gradient-to-r from-white/60 via-transparent to-transparent lg:block hidden" />
                     <div className="absolute inset-0 bg-gradient-to-t from-white/70 to-transparent lg:hidden" />
                     <div className="absolute top-5 left-5">
@@ -114,6 +141,7 @@ function FeaturedCard({ article }: { article: Article }) {
 }
 
 function NewsCard({ article, index }: { article: Article; index: number }) {
+    const imgSrc = getArticleImage(article, index + 1);
     return (
         <motion.div
             initial={{ opacity: 0, y: 24 }}
@@ -123,15 +151,9 @@ function NewsCard({ article, index }: { article: Article; index: number }) {
             className="news-card cursor-pointer group flex flex-col"
         >
             <div className="relative h-52 overflow-hidden">
-                {article.image ? (
-                    <img src={article.image} alt={article.title}
-                        className="w-full h-full object-cover transition-transform duration-600 group-hover:scale-110"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-indigo-50 to-violet-50 flex items-center justify-center">
-                        <Newspaper className="w-14 h-14 text-indigo-200" />
-                    </div>
-                )}
+                <img src={imgSrc} alt={article.title}
+                    className="w-full h-full object-cover transition-transform duration-600 group-hover:scale-110"
+                    onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK_IMAGES[index % FALLBACK_IMAGES.length]; }} />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
                 <div className="absolute bottom-4 left-4">
                     <span className="px-3 py-1 rounded-lg bg-white/90 backdrop-blur-md text-text-primary text-xs font-medium shadow-sm">
@@ -166,7 +188,7 @@ async function fetchDevTo(query: string): Promise<Article[]> {
     try {
         const tag = query.split(' ')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
         const res = await fetch(
-            `https://dev.to/api/articles?tag=${encodeURIComponent(tag)}&per_page=8`,
+            `https://dev.to/api/articles?tag=${encodeURIComponent(tag)}&per_page=20`,
             { headers: { 'User-Agent': 'TooProductive/1.0' } }
         );
         if (!res.ok) return [];
@@ -185,7 +207,7 @@ async function fetchDevTo(query: string): Promise<Article[]> {
 async function fetchHNSearch(query: string): Promise<Article[]> {
     try {
         const res = await fetch(
-            `https://hn.algolia.com/api/v1/search?query=${encodeURIComponent(query)}&tags=story&hitsPerPage=8`
+            `https://hn.algolia.com/api/v1/search?query=${encodeURIComponent(query)}&tags=story&hitsPerPage=20`
         );
         if (!res.ok) return [];
         const data = await res.json();
@@ -206,7 +228,7 @@ async function fetchHNTop(): Promise<Article[]> {
     try {
         const idsRes = await fetch('https://hacker-news.firebaseio.com/v0/topstories.json');
         const ids: number[] = await idsRes.json();
-        const top = ids.slice(0, 12);
+        const top = ids.slice(0, 20);
         const stories = await Promise.allSettled(
             top.map(id => fetch(`https://hacker-news.firebaseio.com/v0/item/${id}.json`).then(r => r.json()))
         );
@@ -223,20 +245,51 @@ async function fetchHNTop(): Promise<Article[]> {
     } catch { return []; }
 }
 
+async function fetchReddit(query: string): Promise<Article[]> {
+    try {
+        const res = await fetch(
+            `https://www.reddit.com/r/technology/search.json?q=${encodeURIComponent(query)}&sort=hot&limit=15&restrict_sr=on&t=week`
+        );
+        if (!res.ok) return [];
+        const data = await res.json();
+        return (data.data?.children || []).filter((c: any) => !c.data.over_18).map((c: any) => ({
+            title: c.data.title,
+            description: c.data.selftext
+                ? c.data.selftext.substring(0, 200)
+                : `${c.data.score || 0} upvotes · ${c.data.num_comments || 0} comments`,
+            url: c.data.url_overridden_by_dest || `https://reddit.com${c.data.permalink}`,
+            image: c.data.thumbnail && c.data.thumbnail.startsWith('http') ? c.data.thumbnail : null,
+            publishedAt: new Date(c.data.created_utc * 1000).toISOString(),
+            source: { name: 'Reddit', url: 'https://reddit.com/r/technology' },
+        }));
+    } catch { return []; }
+}
+
 async function fetchAllNews(query: string): Promise<Article[]> {
-    const [devto, hn] = await Promise.allSettled([fetchDevTo(query), fetchHNSearch(query)]);
+    const [devto, hn, reddit] = await Promise.allSettled([
+        fetchDevTo(query),
+        fetchHNSearch(query),
+        fetchReddit(query),
+    ]);
     const devtoArticles = devto.status === 'fulfilled' ? devto.value : [];
     const hnArticles = hn.status === 'fulfilled' ? hn.value : [];
+    const redditArticles = reddit.status === 'fulfilled' ? reddit.value : [];
 
-    // Interleave both sources
+    // Interleave all sources for variety
     const merged: Article[] = [];
-    const maxLen = Math.max(devtoArticles.length, hnArticles.length);
+    const maxLen = Math.max(devtoArticles.length, hnArticles.length, redditArticles.length);
     for (let i = 0; i < maxLen; i++) {
         if (i < devtoArticles.length) merged.push(devtoArticles[i]);
         if (i < hnArticles.length) merged.push(hnArticles[i]);
+        if (i < redditArticles.length) merged.push(redditArticles[i]);
     }
 
-    if (merged.length > 0) return merged.slice(0, 10);
+    // Remove duplicates by title similarity
+    const unique = merged.filter((a, i, arr) =>
+        arr.findIndex(b => b.title.toLowerCase() === a.title.toLowerCase()) === i
+    );
+
+    if (unique.length > 0) return unique.slice(0, 30);
 
     // Ultimate fallback: HN top stories
     return fetchHNTop();
