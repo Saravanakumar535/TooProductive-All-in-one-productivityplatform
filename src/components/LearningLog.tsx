@@ -7,7 +7,7 @@ import { GradientButton } from './ui/GradientButton';
 import { cn } from '../lib/utils';
 import axios from 'axios';
 
-const API = 'http://localhost:5000/api/learning';
+const API = '/api/learning';
 
 interface LearningEntry {
   id: string;

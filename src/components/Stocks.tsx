@@ -10,7 +10,7 @@ import { GradientButton } from './ui/GradientButton';
 import { cn } from '../lib/utils';
 import axios from 'axios';
 
-const BASE = 'http://localhost:5000/api/stocks';
+const BASE = '/api/stocks';
 
 interface Stock {
   id: string;

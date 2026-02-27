@@ -1,5 +1,9 @@
 node_modules
+dist
 # Keep environment variables out of version control
 .env
+
+# SQLite dev databases
+*.db
 
 /src/generated/prisma
