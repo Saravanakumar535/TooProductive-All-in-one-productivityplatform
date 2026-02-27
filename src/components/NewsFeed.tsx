@@ -84,8 +84,17 @@ const FALLBACK_IMAGES = [
     'https://images.unsplash.com/photo-1487058792275-0ad4aaf24ca7?w=800&q=80', // colorful code
 ];
 
+function isRealImage(url: string | null): boolean {
+    if (!url) return false;
+    // Filter out Dev.to auto-generated social preview images (plain text on colored bg)
+    if (url.includes('social_previews') || url.includes('dev.to/social')) return false;
+    // Filter out tiny placeholder thumbnails
+    if (url.includes('self') || url.includes('default') || url.includes('nsfw')) return false;
+    return true;
+}
+
 function getArticleImage(article: Article, index: number): string {
-    if (article.image) return article.image;
+    if (isRealImage(article.image)) return article.image!;
     // Deterministic fallback based on title hash so same article always gets same image
     let hash = 0;
     for (let i = 0; i < article.title.length; i++) hash = ((hash << 5) - hash) + article.title.charCodeAt(i);
@@ -197,7 +206,7 @@ async function fetchDevTo(query: string): Promise<Article[]> {
             title: a.title,
             description: a.description || a.tag_list?.join(', ') || '',
             url: a.url,
-            image: a.cover_image || a.social_image || null,
+            image: a.cover_image || null,  // skip social_image — it's just auto-generated text on white bg
             publishedAt: a.published_at || a.created_at,
             source: { name: 'Dev.to', url: 'https://dev.to' },
         }));
