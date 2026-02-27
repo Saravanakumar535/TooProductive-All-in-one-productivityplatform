@@ -1,8 +1,7 @@
-import express from 'express';
-import { PrismaClient } from '@prisma/client';
+import { Router } from 'express';
+import { prisma } from '../lib/prisma';
 
-const router = express.Router();
-const prisma = new PrismaClient();
+const router = Router();
 
 // Authenticated user helper (mock for now)
 const getUserId = async () => {

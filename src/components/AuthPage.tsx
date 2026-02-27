@@ -120,10 +120,10 @@ export function AuthPage({ onLogin, onSignup }: AuthPageProps) {
                     <AnimatePresence mode="wait">
                         <motion.div key={mode} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} transition={{ duration: 0.25 }}>
                             <h2 className="text-3xl font-extrabold text-text-primary mb-2">
-                                {mode === 'login' ? 'Welcome back' : 'Create account'}
+                                {mode === 'login' ? 'Access Your Workspace' : 'Create account'}
                             </h2>
                             <p className="text-text-muted text-[0.9375rem] mb-8">
-                                {mode === 'login' ? 'Enter your credentials to access your workspace' : 'Start your journey to infinite productivity'}
+                                {mode === 'login' ? 'Sign in to continue building with TooProductive.' : 'Start your journey to infinite productivity'}
                             </p>
 
 

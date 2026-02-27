@@ -1,11 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MotionSection } from './ui/MotionSection';
-import { BookDashed, Save, Calendar as CalIcon, Trash2, PenLine, Plus, X, Check } from 'lucide-react';
-import axios from 'axios';
+import { BookDashed, Save, Calendar as CalIcon, Trash2, PenLine, Plus, X } from 'lucide-react';
 
-const API = 'http://localhost:5000/api/journal';
-
+// ── Types ──────────────────────────────────────────────────────────
 interface JournalEntry {
     id: string;
     title: string;
@@ -14,48 +12,47 @@ interface JournalEntry {
     updatedAt: string;
 }
 
+// ── Storage helpers ────────────────────────────────────────────────
+const STORAGE_KEY = 'tooproductive_journal';
+
+function loadEntries(): JournalEntry[] {
+    try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    } catch {
+        return [];
+    }
+}
+
+function saveEntries(entries: JournalEntry[]) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+}
+
+function uid() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2);
+}
+
 function formatDate(dateStr: string) {
     return new Date(dateStr).toLocaleDateString('en-US', {
         month: 'short',
         day: 'numeric',
-        year: 'numeric'
+        year: 'numeric',
     });
 }
 
 export function Journal() {
-    const [entries, setEntries] = useState<JournalEntry[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [entries, setEntries] = useState<JournalEntry[]>(() => loadEntries());
     const [saving, setSaving] = useState(false);
 
-    // Form state (for new entry OR editing an existing one)
     const [editingId, setEditingId] = useState<string | null>(null);
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
-
-    // Selected entry to view on the left panel
     const [selectedEntry, setSelectedEntry] = useState<JournalEntry | null>(null);
 
-    /* ======== Fetch Entries ======== */
-    const fetchEntries = async () => {
-        try {
-            const res = await axios.get<JournalEntry[]>(API);
-            setEntries(res.data);
-            // Auto-select the most recent entry
-            if (res.data.length > 0 && !selectedEntry && !editingId) {
-                setSelectedEntry(res.data[0]);
-            }
-        } catch (err) {
-            console.error('Failed to fetch journal entries', err);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        fetchEntries();
+    const refresh = useCallback(() => {
+        const fresh = loadEntries();
+        setEntries(fresh);
     }, []);
 
-    /* ======== Start New Entry ======== */
     const startNew = () => {
         setEditingId(null);
         setTitle('');
@@ -63,7 +60,6 @@ export function Journal() {
         setSelectedEntry(null);
     };
 
-    /* ======== Load Entry into Editor ======== */
     const editEntry = (entry: JournalEntry) => {
         setEditingId(entry.id);
         setTitle(entry.title);
@@ -71,42 +67,46 @@ export function Journal() {
         setSelectedEntry(null);
     };
 
-    /* ======== Save (Create or Update) ======== */
     const saveEntry = async () => {
         if (!title.trim() || !content.trim()) return;
         setSaving(true);
-        try {
-            if (editingId) {
-                // Update
-                await axios.put(`${API}/${editingId}`, { title, content });
-            } else {
-                // Create
-                await axios.post(API, { title, content });
-            }
-            setTitle('');
-            setContent('');
-            setEditingId(null);
-            await fetchEntries();
-        } catch (err) {
-            console.error('Save failed', err);
-        } finally {
-            setSaving(false);
+        await new Promise(r => setTimeout(r, 300)); // UX: brief save animation
+
+        const now = new Date().toISOString();
+        let updated: JournalEntry[];
+
+        if (editingId) {
+            updated = loadEntries().map(e =>
+                e.id === editingId ? { ...e, title, content, updatedAt: now } : e
+            );
+        } else {
+            const newEntry: JournalEntry = {
+                id: uid(),
+                title,
+                content,
+                createdAt: now,
+                updatedAt: now,
+            };
+            updated = [newEntry, ...loadEntries()];
         }
+
+        saveEntries(updated);
+        setEntries(updated);
+        setTitle('');
+        setContent('');
+        setEditingId(null);
+        setSaving(false);
     };
 
-    /* ======== Delete Entry ======== */
-    const deleteEntry = async (id: string) => {
-        try {
-            await axios.delete(`${API}/${id}`);
-            if (selectedEntry?.id === id) setSelectedEntry(null);
-            if (editingId === id) {
-                setEditingId(null);
-                setTitle('');
-                setContent('');
-            }
-            await fetchEntries();
-        } catch (err) {
-            console.error('Delete failed', err);
+    const deleteEntry = (id: string) => {
+        const updated = loadEntries().filter(e => e.id !== id);
+        saveEntries(updated);
+        setEntries(updated);
+        if (selectedEntry?.id === id) setSelectedEntry(null);
+        if (editingId === id) {
+            setEditingId(null);
+            setTitle('');
+            setContent('');
         }
     };
 
@@ -138,7 +138,7 @@ export function Journal() {
                             whileTap={{ scale: 0.95 }}
                             onClick={saveEntry}
                             disabled={saving || !title.trim() || !content.trim()}
-                            className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold text-text-primary disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                            className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                             style={{ background: 'linear-gradient(135deg, #06b6d4, #8b5cf6)' }}
                         >
                             {saving ? (
@@ -163,7 +163,6 @@ export function Journal() {
                         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-brand-cyan to-brand-purple" />
 
                         {selectedEntry && !isEditing ? (
-                            /* ── View Mode ── */
                             <AnimatePresence mode="wait">
                                 <motion.div
                                     key={selectedEntry.id}
@@ -212,7 +211,6 @@ export function Journal() {
                                 </motion.div>
                             </AnimatePresence>
                         ) : (
-                            /* ── Write / Edit Mode ── */
                             <>
                                 {editingId && (
                                     <div className="flex items-center gap-2 text-xs text-accent-blue font-semibold bg-indigo-50 px-3 py-1.5 rounded-lg w-fit">
@@ -248,8 +246,7 @@ export function Journal() {
                             </>
                         )}
 
-                        {/* Empty state */}
-                        {!selectedEntry && !isEditing && !loading && (
+                        {!selectedEntry && !isEditing && entries.length === 0 && (
                             <div className="flex-1 flex flex-col items-center justify-center text-text-secondary gap-4">
                                 <BookDashed size={48} className="opacity-30" />
                                 <p className="text-lg">Click an entry to read it, or start a new one.</p>
@@ -266,13 +263,7 @@ export function Journal() {
                             <h3 className="font-bold text-text-primary text-sm tracking-wide">PAST ENTRIES</h3>
                         </div>
 
-                        {loading ? (
-                            <div className="space-y-3">
-                                {[1, 2, 3].map(i => (
-                                    <div key={i} className="h-14 rounded-xl bg-bg-tertiary animate-pulse" />
-                                ))}
-                            </div>
-                        ) : entries.length === 0 ? (
+                        {entries.length === 0 ? (
                             <p className="text-text-secondary text-sm text-center py-4">No entries yet.<br />Write your first one!</p>
                         ) : (
                             <div className="space-y-3 max-h-[500px] overflow-y-auto custom-scrollbar pr-1">
@@ -305,7 +296,6 @@ export function Journal() {
                                                 {entry.content.slice(0, 50)}...
                                             </div>
 
-                                            {/* Delete button shown on hover */}
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); deleteEntry(entry.id); }}
                                                 className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:text-red-400 text-text-secondary"
@@ -323,4 +313,3 @@ export function Journal() {
         </div>
     );
 }
-

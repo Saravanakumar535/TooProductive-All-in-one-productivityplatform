@@ -1,13 +1,11 @@
 import express, { Express, Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { PrismaClient } from '@prisma/client';
 
 dotenv.config();
 
 const app: Express = express();
 const port = process.env.PORT || 5000;
-export const prisma = new PrismaClient();
 
 // Middleware
 app.use(cors());
@@ -47,7 +45,11 @@ app.get('/', (req: Request, res: Response) => {
   res.send('Productivity Platform API is running');
 });
 
-// Start server
-app.listen(port, () => {
-  console.log(`[server]: Server is running at http://localhost:${port}`);
-});
+// Start server only in local development
+if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+  app.listen(port, () => {
+    console.log(`[server]: Server is running at http://localhost:${port}`);
+  });
+}
+
+export default app;

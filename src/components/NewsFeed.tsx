@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Search, ExternalLink, Clock, TrendingUp, Hash, Bookmark, ChevronLeft, ChevronRight, Zap, ArrowUpRight, Newspaper } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import axios from 'axios';
 
 interface Article {
     title: string;
@@ -161,6 +160,88 @@ function NewsCard({ article, index }: { article: Article; index: number }) {
     );
 }
 
+// ── Direct browser-side news fetchers (no backend needed) ──────────
+
+async function fetchDevTo(query: string): Promise<Article[]> {
+    try {
+        const tag = query.split(' ')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+        const res = await fetch(
+            `https://dev.to/api/articles?tag=${encodeURIComponent(tag)}&per_page=8`,
+            { headers: { 'User-Agent': 'TooProductive/1.0' } }
+        );
+        if (!res.ok) return [];
+        const data = await res.json();
+        return data.map((a: any) => ({
+            title: a.title,
+            description: a.description || a.tag_list?.join(', ') || '',
+            url: a.url,
+            image: a.cover_image || a.social_image || null,
+            publishedAt: a.published_at || a.created_at,
+            source: { name: 'Dev.to', url: 'https://dev.to' },
+        }));
+    } catch { return []; }
+}
+
+async function fetchHNSearch(query: string): Promise<Article[]> {
+    try {
+        const res = await fetch(
+            `https://hn.algolia.com/api/v1/search?query=${encodeURIComponent(query)}&tags=story&hitsPerPage=8`
+        );
+        if (!res.ok) return [];
+        const data = await res.json();
+        return (data.hits || []).map((hit: any) => ({
+            title: hit.title,
+            description: hit.story_text
+                ? hit.story_text.replace(/<[^>]*>/g, '').substring(0, 200)
+                : `${hit.num_comments || 0} comments · ${hit.points || 0} points on Hacker News`,
+            url: hit.url || `https://news.ycombinator.com/item?id=${hit.objectID}`,
+            image: null,
+            publishedAt: hit.created_at || new Date().toISOString(),
+            source: { name: 'Hacker News', url: 'https://news.ycombinator.com' },
+        }));
+    } catch { return []; }
+}
+
+async function fetchHNTop(): Promise<Article[]> {
+    try {
+        const idsRes = await fetch('https://hacker-news.firebaseio.com/v0/topstories.json');
+        const ids: number[] = await idsRes.json();
+        const top = ids.slice(0, 12);
+        const stories = await Promise.allSettled(
+            top.map(id => fetch(`https://hacker-news.firebaseio.com/v0/item/${id}.json`).then(r => r.json()))
+        );
+        return stories
+            .filter(r => r.status === 'fulfilled' && r.value?.title)
+            .map((r: any) => ({
+                title: r.value.title,
+                description: `${r.value.score || 0} points · ${r.value.descendants || 0} comments on Hacker News`,
+                url: r.value.url || `https://news.ycombinator.com/item?id=${r.value.id}`,
+                image: null,
+                publishedAt: r.value.time ? new Date(r.value.time * 1000).toISOString() : new Date().toISOString(),
+                source: { name: 'Hacker News', url: 'https://news.ycombinator.com' },
+            }));
+    } catch { return []; }
+}
+
+async function fetchAllNews(query: string): Promise<Article[]> {
+    const [devto, hn] = await Promise.allSettled([fetchDevTo(query), fetchHNSearch(query)]);
+    const devtoArticles = devto.status === 'fulfilled' ? devto.value : [];
+    const hnArticles = hn.status === 'fulfilled' ? hn.value : [];
+
+    // Interleave both sources
+    const merged: Article[] = [];
+    const maxLen = Math.max(devtoArticles.length, hnArticles.length);
+    for (let i = 0; i < maxLen; i++) {
+        if (i < devtoArticles.length) merged.push(devtoArticles[i]);
+        if (i < hnArticles.length) merged.push(hnArticles[i]);
+    }
+
+    if (merged.length > 0) return merged.slice(0, 10);
+
+    // Ultimate fallback: HN top stories
+    return fetchHNTop();
+}
+
 export function NewsFeed() {
     const [articles, setArticles] = useState<Article[]>([]);
     const [loading, setLoading] = useState(true);
@@ -169,17 +250,19 @@ export function NewsFeed() {
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
 
-    const fetchNews = useCallback(async (cat: string, search: string, p: number) => {
+    const fetchNews = useCallback(async (cat: string, search: string, _p: number) => {
         setLoading(true);
         try {
-            const params: any = { page: p };
-            if (search.trim()) { params.q = search.trim(); }
-            else { const category = categories.find(c => c.id === cat); params.q = category?.query || 'technology'; }
-            const res = await axios.get('/api/news', { params });
-            setArticles(res.data.articles || []);
-            setTotalPages(Math.ceil((res.data.totalArticles || 10) / 10));
-        } catch (err) { console.error('Failed to fetch news:', err); setArticles([]); }
-        finally { setLoading(false); }
+            const q = search.trim() || categories.find(c => c.id === cat)?.query || 'technology';
+            const data = await fetchAllNews(q);
+            setArticles(data);
+            setTotalPages(Math.ceil(data.length / 10) || 1);
+        } catch (err) {
+            console.error('Failed to fetch news:', err);
+            setArticles([]);
+        } finally {
+            setLoading(false);
+        }
     }, []);
 
     useEffect(() => { fetchNews(activeCategory, searchQuery, page); }, [activeCategory, page, fetchNews]);

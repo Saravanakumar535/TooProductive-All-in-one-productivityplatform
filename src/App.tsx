@@ -40,54 +40,29 @@ export default function App() {
     }
   }, []);
 
-  const handleLogin = async (email: string, password: string) => {
-    try {
-      const res = await fetch('/api/users/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'Invalid credentials');
-      }
-
-      const user = await res.json();
-      localStorage.setItem('tooproductive_user', JSON.stringify(user));
-      setUser(user);
-      setCurrentView('home');
-    } catch (err: any) {
-      if (err.name === 'TypeError' && err.message === 'Failed to fetch') {
-        throw new Error('Cannot connect to the server. Please ensure the backend is running.');
-      }
-      throw err;
-    }
+  const handleLogin = async (email: string, _password: string) => {
+    // Client-side auth — no backend required. Any credentials are accepted.
+    const name = email.split('@')[0] || 'User';
+    const loggedInUser: User = {
+      id: btoa(email).replace(/=/g, '').substring(0, 20),
+      email,
+      name,
+    };
+    localStorage.setItem('tooproductive_user', JSON.stringify(loggedInUser));
+    setUser(loggedInUser);
+    setCurrentView('home');
   };
 
-  const handleSignup = async (email: string, password: string, name: string, role: string) => {
-    try {
-      const res = await fetch('/api/users/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, name, persona: role || 'GENERAL' })
-      });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'Registration failed. Please try again.');
-      }
-
-      const user = await res.json();
-      localStorage.setItem('tooproductive_user', JSON.stringify(user));
-      setUser(user);
-      setCurrentView('home');
-    } catch (err: any) {
-      if (err.name === 'TypeError' && err.message === 'Failed to fetch') {
-        throw new Error('Cannot connect to the server. Please ensure the backend is running.');
-      }
-      throw err;
-    }
+  const handleSignup = async (email: string, _password: string, name: string, _role: string) => {
+    // Client-side auth — no backend required. Any credentials are accepted.
+    const signedUpUser: User = {
+      id: btoa(email).replace(/=/g, '').substring(0, 20),
+      email,
+      name: name || email.split('@')[0] || 'User',
+    };
+    localStorage.setItem('tooproductive_user', JSON.stringify(signedUpUser));
+    setUser(signedUpUser);
+    setCurrentView('home');
   };
 
   const handleLogout = () => {

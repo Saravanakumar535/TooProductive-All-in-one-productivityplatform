@@ -1,6 +1,7 @@
-import express from 'express';
+import { Router } from 'express';
+import { prisma } from '../lib/prisma';
 
-const router = express.Router();
+const router = Router();
 
 router.get('/quote/:symbol', async (req, res) => {
     try {

@@ -1,8 +1,7 @@
-import express from 'express';
-import { PrismaClient } from '@prisma/client';
+import { Router } from 'express';
+import { prisma } from '../lib/prisma';
 
-const router = express.Router();
-const prisma = new PrismaClient();
+const router = Router();
 
 // In a real app, you would get this from the JWT token via middleware
 // For now, we'll fetch the first user to act as the authenticated user
